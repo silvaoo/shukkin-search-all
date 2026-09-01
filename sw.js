@@ -1,0 +1,97 @@
+/* =========================================================
+   出退勤検索くん (全ダイヤ) - Service Worker
+   目的:
+   1. PWAとして「インストール可能」にする(Android Chromeの
+      インストールバナー/プロンプトは、有効なfetchハンドラを持つ
+      Service Workerが登録されていることが条件のひとつ)
+   2. オフラインでも開けるように主要ファイルをキャッシュする
+   3. デプロイ更新時に「新しいバージョンがあります」を検知できるようにする
+   ========================================================= */
+
+// キャッシュ名にバージョンを入れておき、更新のたびにこの値を変えることで
+// 新しいService Workerが「更新あり」と判定されるようにする
+const CACHE_VERSION = 'all-shukkin-v1';
+const CACHE_FILES = [
+    './',
+    './index.html',
+    './logs.html',      // 更新履歴。別ファイルに分けてある
+    '../shukkin-search/dia-a.json',
+    '../shukkin-search-ikoma/dia-ikoma.json',
+    '../shukkin-search-ba/dia-ba.json',
+    '../shukkin-search-c/dia-c.json',
+    '../shukkin-search-yobi/dia-yobi.json',
+    './mascot.png',
+    './icons/icon-192.png',
+    './manifest.json',
+    './qr.js'           // QRコードの部品。圏外でも共有画面が出せるように
+];
+
+// インストール時: 主要ファイルをキャッシュに保存
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_VERSION).then((cache) =>
+            // addAll は1つでも取れないと全部が入らない。
+            // アプリによって置いていないファイルがあるので、1つずつ入れて失敗は見送る。
+            Promise.all(CACHE_FILES.map((f) => cache.add(f).catch(() => null)))
+        )
+    );
+    // ここでは skipWaiting() を呼ばない。
+    // 呼ぶと新しい版が即座に切り替わってしまい、更新バナーや通知を出す間がなくなるため。
+    // 利用者がバナーをタップした時に SKIP_WAITING メッセージで切り替える。
+});
+
+// 有効化時: 古いバージョンのキャッシュを削除
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((keys) =>
+            Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+        )
+    );
+    self.clients.claim();
+});
+
+// fetch時: キャッシュを優先しつつ、なければネットワークから取得(オフライン対応)
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+    // 外部ドメイン(Googleドライブのお知らせ画像など)は一切キャッシュしない。
+    // ここを通すと古い画像が端末に残り続け、差し替えや削除が反映されなくなるため。
+    if (new URL(event.request.url).origin !== self.location.origin) return;
+    // Service Worker本体(sw.js / firebase-messaging-sw.js)はキャッシュしない。
+    // 古い版が残ると、更新したのに反映されないという分かりにくい不具合になるため。
+    if (/-?sw\.js$/.test(new URL(event.request.url).pathname)) return;
+    event.respondWith(
+        caches.match(event.request).then((cached) => {
+            const networkFetch = fetch(event.request)
+                .then((res) => {
+                    // 取得できたら最新版をキャッシュに保存し直す(次回更新検知のため)
+                    if (res && res.status === 200) {
+                        const resClone = res.clone();
+                        caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, resClone));
+                    }
+                    return res;
+                })
+                .catch(() => cached);
+            return cached || networkFetch;
+        })
+    );
+});
+
+// index.html側からの「新バージョンをすぐ有効化して」という指示を受け取る
+self.addEventListener('message', (event) => {
+    if (event.data === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
+// 通知をタップしたらアプリを開く(既に開いていればそれを前面に出す)
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+            for (const c of list) {
+                if ('focus' in c) return c.focus();
+            }
+            if (clients.openWindow) return clients.openWindow('./');
+        })
+    );
+});
