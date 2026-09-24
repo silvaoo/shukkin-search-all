@@ -10,16 +10,18 @@
 
 // キャッシュ名にバージョンを入れておき、更新のたびにこの値を変えることで
 // 新しいService Workerが「更新あり」と判定されるようにする
-const CACHE_VERSION = 'all-shukkin-v2';
+const CACHE_VERSION = 'all-shukkin-v4';
 const CACHE_FILES = [
     './',
     './index.html',
     './logs.html',      // 更新履歴。別ファイルに分けてある
     '../shukkin-search/dia-a.json',
     '../shukkin-search-ikoma/dia-ikoma.json',
-    '../shukkin-search-ba/dia-ba.json',
-    '../shukkin-search-c/dia-c.json',
+    '../shukkin-search-ba/dia-ba-1001.json',
+    '../shukkin-search-c/dia-c-1001.json',
     '../shukkin-search-yobi/dia-yobi.json',
+    './pdf/kinmu-keitou-ba.pdf',
+    './pdf/kinmu-keitou-c.pdf',
     './mascot.png',
     './icons/icon-192.png',
     './manifest.json',
