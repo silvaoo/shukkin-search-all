@@ -10,7 +10,7 @@
 
 // キャッシュ名にバージョンを入れておき、更新のたびにこの値を変えることで
 // 新しいService Workerが「更新あり」と判定されるようにする
-const CACHE_VERSION = 'all-shukkin-v51';
+const CACHE_VERSION = 'all-shukkin-v52';
 const CACHE_FILES = [
     './',
     './index.html',
@@ -22,6 +22,12 @@ const CACHE_FILES = [
     '../shukkin-search-yobi/dia-yobi.json',
     './pdf/kinmu-keitou-ba.pdf',
     './pdf/kinmu-keitou-c.pdf',
+    // 今日のナビの行程。選んだダイヤの分を元のアプリから借りる。圏外でも使えるよう控えておく
+    '../shukkin-search/trips-a.json',
+    '../shukkin-search-ikoma/trips-ikoma.json',
+    '../shukkin-search-ba/trips-ba.json',
+    '../shukkin-search-c/trips-c.json',
+    '../shukkin-search-yobi/trips-yobi.json',
     './mascot.png',
     './icons/icon-192.png',
     './manifest.json',
